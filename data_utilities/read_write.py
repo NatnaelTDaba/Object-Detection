@@ -1,19 +1,20 @@
 import sys
-work_dir = '/content/drive/MyDrive/UCF/CAP7919/Object-Detection/'
+import pickle
+work_dir = '/home/abhijit/nat/Object-Detection/'
+data_dir = work_dir+'data/'
+def save(filename, obj):
+    
+    if filename is None:
+        print("Please provide filename.")
+    
+    f = open(data_dir+filename, 'wb')
+    pickle.dump(obj, f)
+    f.close()
 
-def save_object(pickle_name, obj):
+def load(filename):
     
-    if pickle_name is None:
-        print("Provide pickle name.")
-    
-    opened_file_obj = open(work_dir+pickle_name, 'wb')
-    pickle.dump(obj, opened_file_ojb)
-    opened_file_obj.close()
-
-def load_object(pickle_name):
-    
-    opened_file_obj = open(work_dir+pickle_name, 'rb')
-    loaded = pickle.load(opened_file_obj)
-    opened_file_obj.close()
+    f = open(data_dir+filename, 'rb')
+    loaded = pickle.load(f)
+    f.close()
         
     return loaded
