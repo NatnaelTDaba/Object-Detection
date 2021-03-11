@@ -24,8 +24,8 @@ def train(epoch):
 	net.train()
 
 	
-	# for batch_index, (images, labels) in enumerate(xView_train_loader):
-	for batch_index, (images, labels) in enumerate([first_batch]*50):
+	for batch_index, (images, labels) in enumerate(xView_train_loader):
+	#for batch_index, (images, labels) in enumerate([first_batch]*50):
 
 		if args.gpu:
 			labels = labels.cuda()
@@ -65,6 +65,48 @@ def train(epoch):
 
 	print('epoch {} training time consumed: {:.2f}s'.format(epoch, finish - start))
 
+@torch.no_grad()
+def eval_training(epoch=0, tb=True):
+
+    start = time.time()
+    net.eval()
+
+    test_loss = 0.0 
+    correct = 0.0
+
+    for (images, labels) in xView_test_loader:
+
+        if args.gpu:
+            images = images.cuda()
+            labels = labels.cuda()
+
+        outputs = net(images)
+        loss = loss_function(outputs, labels)
+
+        test_loss += loss.item()
+        _, preds = outputs.max(1)
+        correct += preds.eq(labels).sum()
+
+    finish = time.time()
+    if args.gpu:
+        print('GPU INFO.....')
+        print(torch.cuda.memory_summary(), end='')
+    print('Evaluating Network.....')
+    print('Test set: Epoch: {}, Average loss: {:.4f}, Accuracy: {:.4f}, Time consumed:{:.2f}s'.format(
+        epoch,
+        test_loss / len(xView_test_loader.dataset),
+        correct.float() / len(xView_test_loader.dataset),
+        finish - start
+    ))
+    print()
+
+    #add information to tensorboard
+    if tb:
+        writer.add_scalar('Test/Average loss', test_loss / len(xView_test_loader.dataset), epoch)
+        writer.add_scalar('Test/Accuracy', correct.float() / len(xView_test_loader.dataset), epoch)
+
+    return correct.float() / len(xView_test_loader.dataset)
+
 if __name__ == '__main__':
 
 	parser = argparse.ArgumentParser()
@@ -86,7 +128,7 @@ if __name__ == '__main__':
 	
 	xView_train_loader = loader['train']
 	xView_test_loader = loader['val']
-	first_batch = next(iter(xView_train_loader)) # For sanity check by overfitting a mini batch
+	#first_batch = next(iter(xView_train_loader)) # For sanity check by overfitting a mini batch
 
 
 	net = get_network(args)
@@ -94,6 +136,7 @@ if __name__ == '__main__':
 	optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9)
 
 	#use tensorboard
+	
 	if not os.path.exists(LOG_DIR):
 		os.mkdir(LOG_DIR)
 
@@ -109,5 +152,6 @@ if __name__ == '__main__':
 	for epoch in range(1, EPOCH + 1):
 
 		train(epoch)
+		acc = eval_training(epoch)
 
 	writer.close()
