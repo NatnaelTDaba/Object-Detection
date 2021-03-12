@@ -1,3 +1,5 @@
+from config import *
+
 def get_network(args):
     """ return given network
     """
@@ -43,13 +45,13 @@ def get_network(args):
         net = xception()
     elif args.net == 'resnet18':
         from models.resnet import resnet18
-        net = resnet18()
+        net = resnet18(CLASS_SIZE)
     elif args.net == 'resnet34':
         from models.resnet import resnet34
         net = resnet34()
     elif args.net == 'resnet50':
         from models.resnet import resnet50
-        net = resnet50()
+        net = resnet50(CLASS_SIZE)
     elif args.net == 'resnet101':
         from models.resnet import resnet101
         net = resnet101()

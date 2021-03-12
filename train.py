@@ -23,9 +23,7 @@ def train(epoch):
 	start = time.time()
 	net.train()
 
-	
 	for batch_index, (images, labels) in enumerate(xView_train_loader):
-	#for batch_index, (images, labels) in enumerate([first_batch]*50):
 
 		if args.gpu:
 			labels = labels.cuda()
@@ -118,16 +116,17 @@ if __name__ == '__main__':
 
 	print(args.net, args.gpu, args.b, args.lr)
 
-	loader_arguments = {'data_path':TRAIN_DIRECTORY,
-						'transform':transforms.Compose([transforms.Resize((NEW_SIZE,NEW_SIZE)),
-									transforms.ToTensor()]),
-						'batch_size':BATCH_SIZE,
-						'shuffle':True}
+	loader_arguments = {'training_transform':transforms.Compose([transforms.Resize((NEW_SIZE,NEW_SIZE)),
+															transforms.ToTensor()]),
+						'validation_transform':transforms.Compose([transforms.Resize((NEW_SIZE,NEW_SIZE)),
+															transforms.ToTensor()]),
+						'batch_size':args.b
+						}
 
 	loader = get_loader(**loader_arguments)
 	
-	xView_train_loader = loader['train']
-	xView_test_loader = loader['val']
+	xView_train_loader = loader['training']
+	xView_test_loader = loader['validation']
 	#first_batch = next(iter(xView_train_loader)) # For sanity check by overfitting a mini batch
 
 

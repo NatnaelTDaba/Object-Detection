@@ -2,7 +2,7 @@ import torch
 from torchvision.datasets import ImageFolder
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
-
+from config import *
 
 def get_loader(**kwargs):
     """ Returns a PyTorch data loader object
@@ -10,9 +10,11 @@ def get_loader(**kwargs):
 
     """
     loader = {}
-    dataset = ImageFolder(root=kwargs['data_path'],transform=kwargs['transform'])
-    trainset, valset = random_split(dataset, [189829, 81355], torch.Generator().manual_seed(42))
-    loader['train'] = DataLoader(trainset, batch_size=kwargs['batch_size'], shuffle=kwargs['shuffle'])
-    loader['val'] = DataLoader(valset, batch_size=kwargs['batch_size'])
+
+    train_set = ImageFolder(root=TRAIN_DIRECTORY, transform=kwargs['training_transform'], )
+    validation_set = ImageFolder(root=VALIDATION_DIRECTORY, transform=kwargs['validation_transform'])
+
+    loader['training'] = DataLoader(train_set, batch_size=kwargs['batch_size'], shuffle=True)
+    loader['validation'] = DataLoader(validation_set, batch_size=kwargs['batch_size'])
 
     return loader

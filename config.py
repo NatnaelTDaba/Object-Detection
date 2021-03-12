@@ -9,11 +9,14 @@ from datetime import datetime
 WORKING_DIRECTORY = '/home/abhijit/nat/Object-Detection'
 DATA_DIRECTORY = WORKING_DIRECTORY+'/data/'
 UTILITIES_DIRECTORY = WORKING_DIRECTORY+'/data_utilities/'
-TRAIN_DIRECTORY = DATA_DIRECTORY+'train_images_24classes/'
+TRAIN_DIRECTORY = DATA_DIRECTORY+'train_images_24classes_split/train'
+VALIDATION_DIRECTORY = DATA_DIRECTORY+'train_images_24classes_split/val'
 
 BATCH_SIZE = 32
 
 NEW_SIZE = 32
+
+CLASS_SIZE = 24
 
 LOG_DIR = 'runs'
 
