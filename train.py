@@ -8,6 +8,7 @@ import argparse
 import time
 
 import torch
+import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.optim as optim
@@ -16,6 +17,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
+import PIL
 
 from data_loader.data_loader import get_loader
 from config import *
@@ -94,12 +96,11 @@ def eval_training(epoch=0, tb=True):
 		all_targets.extend(labels.cpu().tolist())
 
 	finish = time.time()
-
+	
 	matrix = confusion_matrix(all_targets, all_predictions)
-	fig = plt.figure(figsize=[15,15])
-	plt.imshow(matrix)
-	plt.show()
+	fig = plot_confusion_matrix(matrix, class_names, normalize=True)
 	writer.add_figure('Test/Confusion Matrix', fig, epoch)
+
 	if args.gpu:
 		print('GPU INFO.....')
 		print(torch.cuda.memory_summary(), end='')
@@ -128,16 +129,17 @@ if __name__ == '__main__':
 	parser.add_argument('-lr', type=float, default=0.1, help='initial learning rate')
 	args = parser.parse_args()
 
-	print(args.net, args.gpu, args.b, args.lr)
-
 	loader_arguments = {'training_transform':transforms.Compose([transforms.Resize((NEW_SIZE,NEW_SIZE)),
-															transforms.ToTensor()]),
+											transforms.ToTensor(),
+											torchvision.transforms.ColorJitter(hue=.05, saturation=.05, brightness=0.09),
+    										torchvision.transforms.RandomHorizontalFlip(),
+    										torchvision.transforms.RandomRotation(20, resample=PIL.Image.BILINEAR)]),
 						'validation_transform':transforms.Compose([transforms.Resize((NEW_SIZE,NEW_SIZE)),
-															transforms.ToTensor()]),
+											transforms.ToTensor()]),
 						'batch_size':args.b
 						}
 
-	loader = get_loader(**loader_arguments)
+	sets, loader = get_loader(**loader_arguments)
 	
 	xView_train_loader = loader['training']
 	xView_test_loader = loader['validation']
@@ -146,7 +148,7 @@ if __name__ == '__main__':
 
 	net = get_network(args)
 	loss_function = nn.CrossEntropyLoss()
-	optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9)
+	optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=1e-3)
 
 	#use tensorboard
 	
@@ -156,6 +158,13 @@ if __name__ == '__main__':
 	writer = SummaryWriter(log_dir=os.path.join(LOG_DIR, args.net, TIME_NOW))
 
 	input_tensor = torch.Tensor(1, 3, NEW_SIZE, NEW_SIZE)
+
+	# here index represents the network prediction and class represents original name of folder
+	index_to_class = {index: classs for classs, index in sets['training'].class_to_idx.items()} 
+
+	class_to_label = load_object("class_to_label_map.pkl")
+
+	class_names = [class_to_label[index_to_class[i]] for i in range(len(sets['training'].classes))]
 
 	if args.gpu:
 		input_tensor = input_tensor.cuda()
