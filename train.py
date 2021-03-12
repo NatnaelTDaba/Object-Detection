@@ -14,6 +14,9 @@ import torch.optim as optim
 
 from torch.utils.tensorboard import SummaryWriter
 
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+
 from data_loader.data_loader import get_loader
 from config import *
 from utils import *
@@ -66,44 +69,55 @@ def train(epoch):
 @torch.no_grad()
 def eval_training(epoch=0, tb=True):
 
-    start = time.time()
-    net.eval()
+	start = time.time()
+	net.eval()
 
-    test_loss = 0.0 
-    correct = 0.0
+	test_loss = 0.0 
+	correct = 0.0
 
-    for (images, labels) in xView_test_loader:
+	all_predictions = []
+	all_targets = []
+	for (images, labels) in xView_test_loader:
 
-        if args.gpu:
-            images = images.cuda()
-            labels = labels.cuda()
+		if args.gpu:
+			images = images.cuda()
+			labels = labels.cuda()
 
-        outputs = net(images)
-        loss = loss_function(outputs, labels)
+		outputs = net(images)
+		loss = loss_function(outputs, labels)
 
-        test_loss += loss.item()
-        _, preds = outputs.max(1)
-        correct += preds.eq(labels).sum()
+		test_loss += loss.item()
+		_, preds = outputs.max(1)
+		correct += preds.eq(labels).sum()
 
-    finish = time.time()
-    if args.gpu:
-        print('GPU INFO.....')
-        print(torch.cuda.memory_summary(), end='')
-    print('Evaluating Network.....')
-    print('Test set: Epoch: {}, Average loss: {:.4f}, Accuracy: {:.4f}, Time consumed:{:.2f}s'.format(
-        epoch,
-        test_loss / len(xView_test_loader.dataset),
-        correct.float() / len(xView_test_loader.dataset),
-        finish - start
-    ))
-    print()
+		all_predictions.extend(preds.cpu().tolist())
+		all_targets.extend(labels.cpu().tolist())
 
-    #add information to tensorboard
-    if tb:
-        writer.add_scalar('Test/Average loss', test_loss / len(xView_test_loader.dataset), epoch)
-        writer.add_scalar('Test/Accuracy', correct.float() / len(xView_test_loader.dataset), epoch)
+	finish = time.time()
 
-    return correct.float() / len(xView_test_loader.dataset)
+	matrix = confusion_matrix(all_targets, all_predictions)
+	fig = plt.figure(figsize=[15,15])
+	plt.imshow(matrix)
+	plt.show()
+	writer.add_figure('Test/Confusion Matrix', fig, epoch)
+	if args.gpu:
+		print('GPU INFO.....')
+		print(torch.cuda.memory_summary(), end='')
+	print('Evaluating Network.....')
+	print('Test set: Epoch: {}, Average loss: {:.4f}, Accuracy: {:.4f}, Time consumed:{:.2f}s'.format(
+		epoch,
+		test_loss / len(xView_test_loader.dataset),
+		correct.float() / len(xView_test_loader.dataset),
+		finish - start
+	))
+	print()
+
+	#add information to tensorboard
+	if tb:
+		writer.add_scalar('Test/Average loss', test_loss / len(xView_test_loader.dataset), epoch)
+		writer.add_scalar('Test/Accuracy', correct.float() / len(xView_test_loader.dataset), epoch)
+
+	return correct.float() / len(xView_test_loader.dataset)
 
 if __name__ == '__main__':
 
