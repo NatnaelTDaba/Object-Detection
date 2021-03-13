@@ -137,12 +137,12 @@ class ResNet(nn.Module):
 def resnet18(class_size):
     """ return a ResNet 18 object
     """
-    return ResNet(BasicBlock, [2, 2, 2, 2])
+    return ResNet(BasicBlock, [2, 2, 2, 2], class_size)
 
 def resnet34(class_size):
     """ return a ResNet 34 object
     """
-    return ResNet(BasicBlock, [3, 4, 6, 3])
+    return ResNet(BasicBlock, [3, 4, 6, 3], class_size)
 
 def resnet50(class_size):
     """ return a ResNet 50 object

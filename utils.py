@@ -50,19 +50,19 @@ def get_network(args):
         net = xception()
     elif args.net == 'resnet18':
         from models.resnet import resnet18
-        net = resnet18(CLASS_SIZE)
+        net = resnet18(args.nclasses)
     elif args.net == 'resnet34':
         from models.resnet import resnet34
-        net = resnet34()
+        net = resnet34(args.nclasses)
     elif args.net == 'resnet50':
         from models.resnet import resnet50
-        net = resnet50(CLASS_SIZE)
+        net = resnet50(args.nclasses)
     elif args.net == 'resnet101':
         from models.resnet import resnet101
-        net = resnet101()
+        net = resnet101(args.nclasses)
     elif args.net == 'resnet152':
         from models.resnet import resnet152
-        net = resnet152()
+        net = resnet152(args.nclasses)
     elif args.net == 'preactresnet18':
         from models.preactresnet import preactresnet18
         net = preactresnet18()
@@ -160,7 +160,7 @@ def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion matrix'
         print('Confusion matrix, without normalization')
 
     #print(cm)
-    fig = plt.figure(figsize=[10,10])
+    fig = plt.figure(figsize=[14,14])
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
     plt.title(title)
     plt.colorbar()
@@ -176,9 +176,7 @@ def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion matrix'
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
-    plt.show()
-    plt.savefig()
-
+    
     return fig
 
 def save_object(filename, obj):
