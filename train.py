@@ -17,7 +17,6 @@ from torch.utils.tensorboard import SummaryWriter
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
-import PIL
 
 from data_loader.data_loader import get_loader
 from config import *
@@ -88,7 +87,7 @@ def eval_training(epoch=0, tb=True):
 		outputs = net(images)
 		loss = loss_function(outputs, labels)
 
-		test_loss += loss.item()
+		test_loss += loss.item() * images.size(0)
 		_, preds = outputs.max(1)
 		correct += preds.eq(labels).sum()
 
