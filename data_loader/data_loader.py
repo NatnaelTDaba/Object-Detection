@@ -16,18 +16,25 @@ def get_loader(args):
     loader = {}
     datasets = {}
 
+    if args.pretrained:
+        mean = IMAGENET_MEAN
+        std = IMAGENET_STD
+        print("Using Imagenet statistics")
+    else:
+        mean = TRAIN_MEAN
+        std = TRAIN_STD
     transformations = {'training_transform':transforms.Compose([
-                                        transforms.Resize((NEW_SIZE,NEW_SIZE)),
+                                        transforms.Resize((args.resize, args.resize)),
                                         transforms.ColorJitter(hue=.05, saturation=.05, brightness=0.09),
                                         transforms.RandomHorizontalFlip(),
                                         transforms.RandomRotation(20, resample=PIL.Image.BILINEAR),
                                         transforms.ToTensor(),
-                                        transforms.Normalize(TRAIN_MEAN, TRAIN_STD)]),
+                                        transforms.Normalize(mean, std)]),
 
                         'validation_transform':transforms.Compose([
-                                        transforms.Resize((NEW_SIZE,NEW_SIZE)),
+                                        transforms.Resize((args.resize, args.resize)),
                                         transforms.ToTensor(),
-                                        transforms.Normalize(TRAIN_MEAN, TRAIN_STD)])}
+                                        transforms.Normalize(mean, std)])}
 
     train_set = ImageFolder(root=TRAIN_DIRECTORY, transform=transformations['training_transform'], )
     validation_set = ImageFolder(root=VALIDATION_DIRECTORY, transform=transformations['validation_transform'])

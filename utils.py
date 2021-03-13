@@ -3,7 +3,14 @@ import pickle
 import itertools
 import numpy as np
 import matplotlib.pyplot as plt
+import torchvision.models as prebuilt_models
+import torch.nn as nn
+import torch.nn.init as init
+import ssl
+
 from config import *
+
+ssl._create_default_https_context = ssl._create_unverified_context
 
 def get_network(args):
     """ return given network
@@ -49,14 +56,28 @@ def get_network(args):
         from models.xception import xception
         net = xception()
     elif args.net == 'resnet18':
-        from models.resnet import resnet18
-        net = resnet18(args.nclasses)
+        if args.pretrained:
+            print("Loading pretrained model ...")
+            net = pretrained_models.resnet18(pretrained=True)
+            input_features = net.fc.in_features
+            net.fc = nn.Linear(input_features, args.nclasses)
+        else:
+            print("Loading local model ...")
+            from models.resnet import resnet18
+            net = resnet18(args.nclasses)
     elif args.net == 'resnet34':
         from models.resnet import resnet34
         net = resnet34(args.nclasses)
     elif args.net == 'resnet50':
-        from models.resnet import resnet50
-        net = resnet50(args.nclasses)
+        if args.pretrained:
+            print("Loading pretrained model ...")
+            net = pretrained_models.resnet50(pretrained=True)
+            input_features = net.fc.in_features
+            net.fc = nn.Linear(input_features, args.nclasses)
+        else:
+            print("Loading local model ...")
+            from models.resnet import resnet50
+            net = resnet50(args.nclasses)
     elif args.net == 'resnet101':
         from models.resnet import resnet101
         net = resnet101(args.nclasses)
@@ -195,3 +216,90 @@ def load_object(filename):
     f.close()
         
     return loaded
+
+import torch.nn as nn
+import torch.nn.init as init
+
+
+def init_weights(model):
+    if isinstance(model, nn.Linear):
+        if model.weight is not None:
+            init.kaiming_uniform_(model.weight.data)
+        if model.bias is not None:
+            init.normal_(model.bias.data)
+    elif isinstance(model, nn.BatchNorm1d):
+        if model.weight is not None:
+            init.normal_(model.weight.data, mean=1, std=0.02)
+        if model.bias is not None:
+            init.constant_(model.bias.data, 0)
+    elif isinstance(model, nn.BatchNorm2d):
+        if model.weight is not None:
+            init.normal_(model.weight.data, mean=1, std=0.02)
+        if model.bias is not None:
+            init.constant_(model.bias.data, 0)
+    elif isinstance(model, nn.BatchNorm3d):
+        if model.weight is not None:
+            init.normal_(model.weight.data, mean=1, std=0.02)
+        if model.bias is not None:
+            init.constant_(model.bias.data, 0)
+    else:
+        pass
+
+def most_recent_folder(net_weights, fmt):
+    """
+        return most recent created folder under net_weights
+        if no none-empty folder were found, return empty folder
+    """
+    # get subfolders in net_weights
+    folders = os.listdir(net_weights)
+
+    # filter out empty folders
+    folders = [f for f in folders if len(os.listdir(os.path.join(net_weights, f)))]
+    if len(folders) == 0:
+        return ''
+
+    # sort folders by folder created time
+    folders = sorted(folders, key=lambda f: datetime.datetime.strptime(f, fmt))
+    return folders[-1]
+
+def best_acc_weights(weights_folder):
+    """
+        return the best acc .pth file in given folder, if no
+        best acc weights file were found, return empty string
+    """
+    files = os.listdir(weights_folder)
+    if len(files) == 0:
+        return ''
+
+    regex_str = r'([A-Za-z0-9]+)-([0-9]+)-(regular|best)'
+    best_files = [w for w in files if re.search(regex_str, w).groups()[2] == 'best']
+    if len(best_files) == 0:
+        return ''
+
+    best_files = sorted(best_files, key=lambda w: int(re.search(regex_str, w).groups()[1]))
+    return best_files[-1]
+
+
+def most_recent_weights(weights_folder):
+    """
+        return most recent created weights file
+        if folder is empty return empty string
+    """
+    weight_files = os.listdir(weights_folder)
+    if len(weights_folder) == 0:
+        return ''
+
+    regex_str = r'([A-Za-z0-9]+)-([0-9]+)-(regular|best)'
+
+    # sort files by epoch
+    weight_files = sorted(weight_files, key=lambda w: int(re.search(regex_str, w).groups()[1]))
+
+    return weight_files[-1]
+
+def last_epoch(weights_folder):
+    weight_file = most_recent_weights(weights_folder)
+    if not weight_file:
+       raise Exception('no recent weights were found')
+    resume_epoch = int(weight_file.split('-')[1])
+
+    return resume_epoch

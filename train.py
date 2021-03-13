@@ -38,6 +38,7 @@ def train(epoch):
 		loss = loss_function(outputs, labels)
 		loss.backward()
 		optimizer.step()
+		
 
 		n_iter = (epoch - 1) * len(xView_train_loader) + batch_index + 1
 
@@ -57,6 +58,7 @@ def train(epoch):
 
 		#update training loss for each iteration
 		writer.add_scalar('Train/loss', loss.item(), n_iter)
+
 
 	for name, param in net.named_parameters():
 		layer, attr = os.path.splitext(name)
@@ -130,7 +132,12 @@ if __name__ == '__main__':
 	parser.add_argument('-lr', type=float, default=0.1, help='initial learning rate')
 	parser.add_argument('-nclasses', type=int, default=24, help='number of classes or labels')
 	parser.add_argument('-decay', type=float, default=1e-3, help='weight decay to be used by optimizer')
+	parser.add_argument('-resize', type=int, default=32, help='new size to rescale image')
+	parser.add_argument('-pretrained', action='store_true', default=False, help='use pretrained model or not')
+	parser.add_argument('-resume', action='store_true', default=False, help='resume training')
 	args = parser.parse_args()
+
+	print(vars(args))
 
 	datasets, loader = get_loader(args)
 	
@@ -144,8 +151,10 @@ if __name__ == '__main__':
 
 
 	net = get_network(args)
+	net.apply(init_weights)
 	loss_function = nn.CrossEntropyLoss()
 	optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.decay)
+	lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
 
 	#use tensorboard
 	
@@ -159,6 +168,44 @@ if __name__ == '__main__':
 
 	if not os.path.exists(save_plot_directory):
 		os.mkdir(save_plot_directory)
+
+
+	if args.resume:
+		recent_folder = most_recent_folder(os.path.join(CHECKPOINT_PATH, args.net), fmt=settings.DATE_FORMAT)
+		if not recent_folder:
+			raise Exception('no recent folder were found')
+
+		checkpoint_path = os.path.join(CHECKPOINT_PATH, args.net, recent_folder)
+
+	else:
+		checkpoint_path = os.path.join(CHECKPOINT_PATH, args.net, TIME_NOW)
+
+	
+
+	#create checkpoint folder to save model
+	if not os.path.exists(checkpoint_path):
+		os.makedirs(checkpoint_path)
+
+	checkpoint_path = os.path.join(checkpoint_path, '{net}-{epoch}-{type}.pth')
+
+	if args.resume:
+		best_weights = best_acc_weights(os.path.join(CHECKPOINT_PATH, args.net, recent_folder))
+		if best_weights:
+			weights_path = os.path.join(CHECKPOINT_PATH, args.net, recent_folder, best_weights)
+			print('found best acc weights file:{}'.format(weights_path))
+			print('load best training file to test acc...')
+			net.load_state_dict(torch.load(weights_path))
+			best_acc = eval_training(tb=False)
+			print('best acc is {:0.2f}'.format(best_acc))
+
+		recent_weights_file = most_recent_weights(os.path.join(CHECKPOINT_PATH, args.net, recent_folder))
+		if not recent_weights_file:
+			raise Exception('no recent weights file were found')
+		weights_path = os.path.join(CHECKPOINT_PATH, args.net, recent_folder, recent_weights_file)
+		print('loading weights file {} to resume training.....'.format(weights_path))
+		net.load_state_dict(torch.load(weights_path))
+
+		resume_epoch = last_epoch(os.path.join(CHECKPOINT_PATH, args.net, recent_folder))
 
 	writer = SummaryWriter(log_dir=os.path.join(LOG_DIR, args.net, TIME_NOW))
 
@@ -176,9 +223,23 @@ if __name__ == '__main__':
 
 	writer.add_graph(net, input_tensor)
 
+	best_acc = 0.0
+
 	for epoch in range(1, EPOCH + 1):
+
+		if args.resume:
+			if epoch <= resume_epoch:
+				continue
 
 		train(epoch)
 		acc = eval_training(epoch)
+		lr_scheduler.step()
+
+		#start to save best performance model after learning rate decay to 0.01
+		if best_acc < acc:
+			weights_path = checkpoint_path.format(net=args.net, epoch=epoch, type='best')
+			print('saving weights file to {}'.format(weights_path))
+			torch.save(net.state_dict(), weights_path)
+			best_acc = acc
 
 	writer.close()
