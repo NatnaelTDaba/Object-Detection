@@ -22,6 +22,7 @@ from data_loader.data_loader import get_loader
 from config import *
 from utils import *
 
+
 def train(epoch):
 
 	start = time.time()
@@ -149,11 +150,12 @@ if __name__ == '__main__':
 	xView_test_loader = loader['validation']
 	#first_batch = next(iter(xView_train_loader)) # For sanity check by overfitting a mini batch
 
-
 	net = get_network(args)
-	net.apply(init_weights)
+	#net.apply(init_weights)
+	net = init_weights2(net)
 	loss_function = nn.CrossEntropyLoss()
-	optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.decay)
+	optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.decay, nesterov=True)
+	#optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.decay)
 	lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
 
 	#use tensorboard

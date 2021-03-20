@@ -29,15 +29,26 @@ def get_loader(args):
                                         transforms.RandomHorizontalFlip(),
                                         transforms.RandomRotation(20, resample=PIL.Image.BILINEAR),
                                         transforms.ToTensor(),
-                                        transforms.Normalize(mean, std)]),
+                                        transforms.Normalize(WEAK_TRAIN_MEAN, WEAK_TRAIN_STD)]),
 
                         'validation_transform':transforms.Compose([
                                         transforms.Resize((args.resize, args.resize)),
                                         transforms.ToTensor(),
-                                        transforms.Normalize(mean, std)])}
+                                        transforms.Normalize(WEAK_TRAIN_MEAN, WEAK_TRAIN_STD)])
+                        }
 
-    train_set = ImageFolder(root=TRAIN_DIRECTORY, transform=transformations['training_transform'], )
-    validation_set = ImageFolder(root=VALIDATION_DIRECTORY, transform=transformations['validation_transform'])
+    if args.nclasses == 5:
+        train_path = WEAK_TRAIN_DIRECTORY
+        val_path = WEAK_VALIDATION_DIRECTORY
+    elif args.nclasses == 24:
+        train_path = TRAIN_DIRECTORY
+        val_path = VALIDATION_DIRECTORY
+    else:
+        print("Invalid number of classes")
+        sys.exit()
+
+    train_set = ImageFolder(root=train_path, transform=transformations['training_transform'], )
+    validation_set = ImageFolder(root=val_path, transform=transformations['validation_transform'])
 
     loader['training'] = DataLoader(train_set, batch_size=args.b, shuffle=True)
     loader['validation'] = DataLoader(validation_set, batch_size=args.b)
