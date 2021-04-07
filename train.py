@@ -136,6 +136,8 @@ if __name__ == '__main__':
 	parser.add_argument('-resize', type=int, default=32, help='new size to rescale image')
 	parser.add_argument('-pretrained', action='store_true', default=False, help='use pretrained model or not')
 	parser.add_argument('-resume', action='store_true', default=False, help='resume training')
+	parser.add_argument('-balanced', action='store_true', default=False, help='load data with resampling to avoid training with imbalanced dataset')
+
 	args = parser.parse_args()
 
 	print(vars(args))
@@ -153,7 +155,7 @@ if __name__ == '__main__':
 	net = get_network(args)
 	#net.apply(init_weights)
 	net = init_weights2(net)
-	loss_function = nn.CrossEntropyLoss()
+	loss_function = nn.CrossEntropyLoss(weight=torch.tensor(CLASS_WEIGHTS).cuda()) 
 	optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.decay, nesterov=True)
 	#optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.decay)
 	lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
@@ -214,7 +216,7 @@ if __name__ == '__main__':
 	input_tensor = torch.Tensor(1, 3, NEW_SIZE, NEW_SIZE)
 
 	# here index represents the network prediction and class represents original name of folder
-	index_to_class = {index: classs for classs, index in datasets['training'].class_to_idx.items()} 
+	index_to_class = {index: classs for classs, index in datasets['training'].class_to_idx.items()}  
 
 	class_to_label = load_object("class_to_label_map.pkl")
 
