@@ -54,7 +54,7 @@ def train(epoch):
 		loss.item(),
 		optimizer.param_groups[0]['lr'],
 		epoch=epoch,
-		trained_samples=batch_index * args.b + len(images),
+		trained_samples=batch_index * args.bs + len(images),
 		total_samples=len(xView_train_loader.dataset)))
 
 		#update training loss for each iteration
@@ -109,18 +109,20 @@ def eval_training(epoch=0, tb=True):
 		print('GPU INFO.....')
 		print(torch.cuda.memory_summary(), end='')
 	print('Evaluating Network.....')
+	average_loss = test_loss / len(xView_test_loader.dataset)
+	accuracy = correct.float() / len(xView_test_loader.dataset)
 	print('Test set: Epoch: {}, Average loss: {:.4f}, Accuracy: {:.4f}, Time consumed:{:.2f}s'.format(
 		epoch,
-		test_loss / len(xView_test_loader.dataset),
-		correct.float() / len(xView_test_loader.dataset),
+		average_loss,
+		accuracy,
 		finish - start
 	))
 	print()
 
 	#add information to tensorboard
 	if tb:
-		writer.add_scalar('Test/Average loss', test_loss / len(xView_test_loader.dataset), epoch)
-		writer.add_scalar('Test/Accuracy', correct.float() / len(xView_test_loader.dataset), epoch)
+		writer.add_scalar('Test/Average loss', average_loss, epoch)
+		writer.add_scalar('Test/Accuracy', accuracy, epoch)
 
 	return correct.float() / len(xView_test_loader.dataset)
 
@@ -129,21 +131,27 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-net', type=str, required=True, help='net type')
 	parser.add_argument('-gpu', action='store_true', default=False, help='use gpu or not')
-	parser.add_argument('-b', type=int, default=128, help='batch size for dataloader')
+	parser.add_argument('-bs', type=int, default=128, help='batch size for dataloader')
 	parser.add_argument('-lr', type=float, default=0.1, help='initial learning rate')
 	parser.add_argument('-nclasses', type=int, default=24, help='number of classes or labels')
-	parser.add_argument('-decay', type=float, default=1e-3, help='weight decay to be used by optimizer')
+	parser.add_argument('-weight_decay', type=float, default=1e-3, help='weight decay to be used by optimizer')
 	parser.add_argument('-resize', type=int, default=32, help='new size to rescale image')
 	parser.add_argument('-pretrained', action='store_true', default=False, help='use pretrained model or not')
 	parser.add_argument('-resume', action='store_true', default=False, help='resume training')
 	parser.add_argument('-balanced', action='store_true', default=False, help='load data with resampling to avoid training with imbalanced dataset')
+	parser.add_argument('-gamma', type=float, default=0.1, help='learning rate decay factor')
+	parser.add_argument('-step_size', type=int, default=20, help='number of epochs to wait before decaying learning rate')
+	parser.add_argument('-momentum', type=int, default=0.9, help='momentum for optimizer')
+	parser.add_argument('-epochs', type=int, default=1000, help='number of epochs to train for')
+	parser.add_argument('-weighted_loss', action='store_true', default=False, help='weight the loss according to class distribution')
+	parser.add_argument('-num_workers', type=int, default=0, help='number of process for data loading')
 
 	args = parser.parse_args()
 
 	print(vars(args))
 
 	datasets, loader = get_loader(args)
-	
+	#print("len datasetse", len(datasets['training'].classes))
 	if args.nclasses != len(datasets['training'].classes):
 		print('There is a mismatch between specified number of classes and actual number of classes in the dataset.')
 		quit()
@@ -155,10 +163,14 @@ if __name__ == '__main__':
 	net = get_network(args)
 	#net.apply(init_weights)
 	net = init_weights2(net)
-	loss_function = nn.CrossEntropyLoss(weight=torch.tensor(CLASS_WEIGHTS).cuda()) 
-	optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.decay, nesterov=True)
+	if args.weighted_loss:
+		loss_weights = torch.tensor(get_loss_weights(args)).cuda()
+	else:
+		loss_weights = None
+	loss_function = nn.CrossEntropyLoss(weight=loss_weights) 
+	optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay, nesterov=True)
 	#optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.decay)
-	lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
+	lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
 
 	#use tensorboard
 	
@@ -213,12 +225,12 @@ if __name__ == '__main__':
 
 	writer = SummaryWriter(log_dir=os.path.join(LOG_DIR, args.net, TIME_NOW))
 
-	input_tensor = torch.Tensor(1, 3, NEW_SIZE, NEW_SIZE)
+	input_tensor = torch.Tensor(1, 3, args.resize, args.resize)
 
 	# here index represents the network prediction and class represents original name of folder
 	index_to_class = {index: classs for classs, index in datasets['training'].class_to_idx.items()}  
 
-	class_to_label = load_object("class_to_label_map.pkl")
+	class_to_label = load_object("class_to_label_22classes.pkl")
 
 	class_names = [class_to_label[index_to_class[i]] for i in range(len(datasets['training'].classes))]
 
@@ -228,8 +240,10 @@ if __name__ == '__main__':
 	writer.add_graph(net, input_tensor)
 
 	best_acc = 0.0
-
-	for epoch in range(1, EPOCH + 1):
+	
+	save_hparams(args, writer)
+	
+	for epoch in range(1, args.epochs + 1):
 
 		if args.resume:
 			if epoch <= resume_epoch:

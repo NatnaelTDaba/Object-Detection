@@ -1,5 +1,7 @@
 import sys
+import os
 import pickle
+import csv
 import itertools
 import numpy as np
 import matplotlib.pyplot as plt
@@ -315,7 +317,6 @@ def init_weights2(net):
     for m in net.modules():
         if isinstance(m, nn.Conv2d):
             nn.init.xavier_uniform_(m.weight)
-            #nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
             
@@ -331,3 +332,45 @@ def init_weights2(net):
 
     return net
 
+def save_hparams(args, writer):
+    
+    with open(os.path.join(writer.get_logdir(), 'hparams.csv'), 'w') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        csv_writer.writerow(['Parameter', 'Value'])
+        for key, value in vars(args).items():
+            csv_writer.writerow([key, value])
+
+def get_stats(args):
+
+    if args.nclasses == 5:
+
+        train_path = WEAK_TRAIN_DIRECTORY
+        val_path = WEAK_VALIDATION_DIRECTORY
+        mean = WEAK_TRAIN_MEAN
+        std = WEAK_TRAIN_STD
+
+    elif args.nclasses == 24:
+
+        train_path = TRAIN_DIRECTORY
+        val_path = VALIDATION_DIRECTORY
+        mean = TRAIN_MEAN
+        std = TRAIN_STD
+
+    elif args.nclasses == 22:
+        
+        train_path = TRAIN_DIRECTORY_22CLASS
+        val_path = VALIDATION_DIRECTORY_22CLASS
+        mean = TRAIN_MEAN_22CLASS
+        std = TRAIN_STD_22CLASS
+    else:
+        print("Invalid number of classes")
+        sys.exit()
+
+    return (train_path, val_path, mean, std)
+
+def get_loss_weights(args):
+
+    if args.nclasses == 24:
+        return CLASS_WEIGHTS24
+    elif args.nclasses == 22:
+        return CLASS_WEIGHTS22
