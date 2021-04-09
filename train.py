@@ -62,7 +62,7 @@ def train(epoch):
 
 		if epoch <= args.warm:
 			warmup_scheduler.step()
-			
+
 	for name, param in net.named_parameters():
 		layer, attr = os.path.splitext(name)
 		attr = attr[1:]
@@ -148,6 +148,7 @@ if __name__ == '__main__':
 	parser.add_argument('-weighted_loss', action='store_true', default=False, help='weight the loss according to class distribution')
 	parser.add_argument('-num_workers', type=int, default=0, help='number of process for data loading')
 	parser.add_argument('-warm', type=int, default=1, help='first number of batches to use for warm up')
+	parser.add_argument('-no_bias_decay', action='store_true', default=False, help='If True, L2 weight decay won\'t be applied to conv and linear bias')
 
 	args = parser.parse_args()
 
@@ -170,11 +171,17 @@ if __name__ == '__main__':
 		loss_weights = torch.tensor(get_loss_weights(args)).cuda()
 	else:
 		loss_weights = None
+	
+	if args.no_bias_decay:
+		net_params = split_weights(net)
+		optimizer = optim.SGD(net_params, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay, nesterov=True)
+	else:
+		optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay, nesterov=True)
+		
 	loss_function = nn.CrossEntropyLoss(weight=loss_weights) 
-	optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay, nesterov=True)
+	
 	iter_per_epoch = len(xView_train_loader)
 	warmup_scheduler = WarmUpLR(optimizer, iter_per_epoch * args.warm)
-	#optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.decay)
 	lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
 
 	#use tensorboard
