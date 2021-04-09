@@ -104,6 +104,7 @@ def eval_training(epoch=0, tb=True):
 	matrix = confusion_matrix(all_targets, all_predictions)
 	fig = plot_confusion_matrix(matrix, class_names, normalize=True)
 	fig.savefig(os.path.join(save_plot_directory,'confusion_matrix_epoch_'+str(epoch)+'.png'), bbox_inches='tight')
+	save_report(all_targets, all_predictions, class_names, reports_directory, epoch)
 
 	writer.add_figure('Test/Confusion Matrix', fig, epoch)
 
@@ -191,12 +192,19 @@ if __name__ == '__main__':
 	
 	save_plot_directory = os.path.join(PLOTS_DIRECTORY, args.net+'/', TIME_NOW+'/')
 
+	reports_directory = os.path.join(REPORTS_DIRECTORY, args.net+'/', TIME_NOW+'/')
+
 	if not os.path.exists(os.path.join(PLOTS_DIRECTORY, args.net+'/')):
 		os.mkdir(os.path.join(PLOTS_DIRECTORY, args.net+'/'))
 
 	if not os.path.exists(save_plot_directory):
 		os.mkdir(save_plot_directory)
 
+	if not os.path.exists(os.path.join(REPORTS_DIRECTORY, args.net+'/')):
+		os.mkdir(os.path.join(REPORTS_DIRECTORY, args.net+'/'))
+
+	if not os.path.exists(reports_directory):
+		os.mkdir(reports_directory)
 
 	if args.resume:
 		recent_folder = most_recent_folder(os.path.join(CHECKPOINT_PATH, args.net), fmt=settings.DATE_FORMAT)
@@ -266,7 +274,6 @@ if __name__ == '__main__':
 
 		train(epoch)
 		acc = eval_training(epoch)
-		lr_scheduler.step()
 
 		#start to save best performance model after learning rate decay to 0.01
 		if best_acc < acc:

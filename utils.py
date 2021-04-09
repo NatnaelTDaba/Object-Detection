@@ -13,6 +13,8 @@ import torch.nn.functional as F
 import torch.nn.init as init
 import ssl
 
+from sklearn.metrics import classification_report
+
 from config import *
 
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -428,3 +430,9 @@ def split_weights(net):
     assert len(list(net.parameters())) == len(decay) + len(no_decay)
 
     return [dict(params=decay), dict(params=no_decay, weight_decay=0)]
+
+def save_report(targets, predictions, class_names, report_dir, epoch):
+
+    with open(os.path.join(report_dir, 'epoch_' +str(epoch)+'_report.txt'), 'w') as f:
+
+        print(classification_report(targets, predictions, target_names=class_names), file=f)

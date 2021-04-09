@@ -17,6 +17,7 @@ PLOTS_DIRECTORY = WORKING_DIRECTORY+'/runs/plots/'
 CHECKPOINT_PATH = WORKING_DIRECTORY+'/checkpoint/'
 WEAK_TRAIN_DIRECTORY = DATA_DIRECTORY+'train_images_top5_weak/train'
 WEAK_VALIDATION_DIRECTORY = DATA_DIRECTORY+'train_images_top5_weak/val'
+REPORTS_DIRECTORY = WORKING_DIRECTORY+'/reports/'
 
 # mean and std of training dataset with 24 classes
 TRAIN_MEAN = [0.2559, 0.2135, 0.1866]

@@ -40,12 +40,12 @@ def get_loader(args):
 
     if args.balanced:
         print("Balanced training")
-        loader['training'] = DataLoader(train_set, sampler=ImbalancedDatasetSampler(train_set), batch_size=args.b, num_workers=args.num_workers)
-        loader['validation'] = DataLoader(validation_set, sampler=ImbalancedDatasetSampler(validation_set), batch_size=args.b, num_workers=args.num_workers)
+        loader['training'] = DataLoader(train_set, sampler=ImbalancedDatasetSampler(train_set), batch_size=args.bs, num_workers=args.num_workers)
     else:
         print("Imbalanced training")
         loader['training'] = DataLoader(train_set, batch_size=args.bs, shuffle=True, num_workers=args.num_workers)
-        loader['validation'] = DataLoader(validation_set, batch_size=args.bs, num_workers=args.num_workers)
+    
+    loader['validation'] = DataLoader(validation_set, batch_size=args.bs, num_workers=args.num_workers)
 
     datasets['training'] = train_set
     datasets['validation'] = validation_set

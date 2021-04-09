@@ -44,7 +44,7 @@ class FindLR(_LRScheduler):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-net', type=str, required=True, help='net type')
-	parser.add_argument('-b', type=int, default=64, help='batch size for dataloader')
+	parser.add_argument('-bs', type=int, default=64, help='batch size for dataloader')
 	parser.add_argument('-base_lr', type=float, default=1e-7, help='min learning rate')
 	parser.add_argument('-max_lr', type=float, default=10, help='max learning rate')
 	parser.add_argument('-num_iter', type=int, default=100, help='num of iteration')
@@ -53,7 +53,9 @@ if __name__ == '__main__':
 	parser.add_argument('-nclasses', type=int, default=24, help='number of classes or labels')
 	parser.add_argument('-resize', type=int, default=32, help='new size to rescale image')
 	parser.add_argument('-pretrained', action='store_true', default=False, help='use pretrained model or not')
-	
+	parser.add_argument('-balanced', action='store_true', default=False, help='load data with resampling to avoid training with imbalanced dataset')
+	parser.add_argument('-num_workers', type=int, default=0, help='number of process for data loading')
+
 	args = parser.parse_args()
 
 	# cifar100_training_loader = get_training_dataloader(
@@ -68,9 +70,11 @@ if __name__ == '__main__':
 	xView_test_loader = loader['validation']
 
 	net = get_network(args)
+	loss_weights = torch.tensor(get_loss_weights(args)).cuda()
+	loss_function = nn.CrossEntropyLoss(weight=loss_weights)
+	net_params = split_weights(net)
+	optimizer = optim.SGD(net_params, lr=args.base_lr, momentum=0.9, weight_decay=1e-4, nesterov=True)
 
-	loss_function = nn.CrossEntropyLoss()
-	optimizer = optim.SGD(net.parameters(), lr=args.base_lr, momentum=0.9, weight_decay=1e-4, nesterov=True)
 
 	#set up warmup phase learning rate scheduler
 	lr_scheduler = FindLR(optimizer, max_lr=args.max_lr, num_iter=args.num_iter)
@@ -107,7 +111,7 @@ if __name__ == '__main__':
 				loss.item(),
 				optimizer.param_groups[0]['lr'],
 				iter_num=n,
-				trained_samples=batch_index * args.b + len(images),
+				trained_samples=batch_index * args.bs + len(images),
 				total_samples=len(xView_train_loader.dataset),
 			))
 
