@@ -60,7 +60,9 @@ def train(epoch):
 		#update training loss for each iteration
 		writer.add_scalar('Train/loss', loss.item(), n_iter)
 
-
+		if epoch <= args.warm:
+			warmup_scheduler.step()
+			
 	for name, param in net.named_parameters():
 		layer, attr = os.path.splitext(name)
 		attr = attr[1:]
@@ -118,7 +120,7 @@ def eval_training(epoch=0, tb=True):
 		finish - start
 	))
 	print()
-
+	
 	#add information to tensorboard
 	if tb:
 		writer.add_scalar('Test/Average loss', average_loss, epoch)
@@ -145,6 +147,7 @@ if __name__ == '__main__':
 	parser.add_argument('-epochs', type=int, default=1000, help='number of epochs to train for')
 	parser.add_argument('-weighted_loss', action='store_true', default=False, help='weight the loss according to class distribution')
 	parser.add_argument('-num_workers', type=int, default=0, help='number of process for data loading')
+	parser.add_argument('-warm', type=int, default=1, help='first number of batches to use for warm up')
 
 	args = parser.parse_args()
 
@@ -169,6 +172,8 @@ if __name__ == '__main__':
 		loss_weights = None
 	loss_function = nn.CrossEntropyLoss(weight=loss_weights) 
 	optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay, nesterov=True)
+	iter_per_epoch = len(xView_train_loader)
+	warmup_scheduler = WarmUpLR(optimizer, iter_per_epoch * args.warm)
 	#optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.decay)
 	lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
 
@@ -242,8 +247,11 @@ if __name__ == '__main__':
 	best_acc = 0.0
 	
 	save_hparams(args, writer)
-	
+
 	for epoch in range(1, args.epochs + 1):
+		
+		if epoch > args.warm:
+			lr_scheduler.step(epoch)
 
 		if args.resume:
 			if epoch <= resume_epoch:
